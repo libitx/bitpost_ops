@@ -116,11 +116,12 @@ return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pub
   end
 
   -- Local helper method for encoding an integer into a variable length binary
-  local function varint(int)
-    if      int < 253         then return string.pack('B', int)
-    elseif  int < 0x10000     then return string.pack('B<I2', 253, int)
-    elseif  int < 0x100000000 then return string.pack('B<I4', 254, int)
-    else                           return string.pack('B<I8', 255, int)
+  local function pushint(int)
+    if      int < 76          then return string.pack('B', int)
+    elseif  int < 0x100       then return string.pack('B', 76, int)
+    elseif  int < 0x10000     then return string.pack('B<I2', 77, int)
+    elseif  int < 0x100000000 then return string.pack('B<I4', 78, int)
+    else                           error('Push data too large')
     end
   end
 
@@ -131,7 +132,7 @@ return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pub
     for idx = 1, #tape do
       local data = tape[idx]
       if data.op == nil then
-        message1 = message1 .. varint(string.len(data.b)) .. data.b
+        message1 = message1 .. pushint(string.len(data.b)) .. data.b
       else
         message1 = message1 .. data.b
       end
@@ -145,7 +146,7 @@ return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pub
     local message2 = ''
     for idx = 1, #parts do
       local data = parts[idx]
-      message2 = message2 .. varint(string.len(data)) .. data
+      message2 = message2 .. pushint(string.len(data)) .. data
     end
     local hash2 = crypto.hash.sha256(message2)
     sig.child.hash = base.encode16(hash2)
