@@ -1,6 +1,6 @@
 --[[
 Verifies both a parent and child signature, using the given public keys. Using
-two signatures allows Metanet-like structures to be defined, without need to
+two signatures allows Metanet-like tx graphs to be created, without need to
 sign inputs and with more flexible ownership properties.
 
 The message the parent signature is verified against is all of the data of the
