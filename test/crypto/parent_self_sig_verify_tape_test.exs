@@ -57,6 +57,15 @@ defmodule Crypto.ParentChildSigVerifyTapeTest do
       assert res["child"]["verified"] == false
     end
 
+    test "works consistently if index is an integer", ctx do
+      res = %Operate.Cell{op: ctx.op, data_index: 0, params: [<<1>>, "##dummy_sig1##", "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF", "##dummy_sig2##", "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd"]}
+      |> Operate.Cell.exec!(ctx.vm)
+      |> Map.get("signatures")
+
+      assert res["parent"]["hash"] == "677ae98e74ebe6d68f93440bf2ebebdf35d7645a28c44220c88cab430b3b5734"
+      assert res["child"]["hash"] == "a3591af923ae39bb1082ec7003d058090ae864bc534080a95a06d6447ee378e0"
+    end
+
     test "must raise when either pubkey is missing", ctx do
       assert_raise RuntimeError, ~r/^Lua Error/, fn ->
         %Operate.Cell{op: ctx.op, params: ["1", "##dummy_sig1##", nil, "##dummy_sig2##", "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd"]}
