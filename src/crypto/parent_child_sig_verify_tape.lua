@@ -54,7 +54,7 @@ formats:
     #   }
     # }
 
-@version 0.1.1
+@version 0.1.2
 @author Bitpost
 ]]--
 return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pubkey)
@@ -142,12 +142,9 @@ return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pub
     sig.parent.verified = crypto.bitcoin_message.verify(parent_sig, hash1, parent_pubkey, {encoding = 'binary'})
 
     -- Build child sig from parent signature params
-    local parts = {tape_idx, parent_sig, parent_pubkey}
-    local message2 = ''
-    for idx = 1, #parts do
-      local data = parts[idx]
-      message2 = message2 .. pushint(string.len(data)) .. data
-    end
+    local message2 = pushint(tape_idx) .. string.pack('B', tape_idx)
+    message2 = message2 .. pushint(string.len(parent_sig)) .. parent_sig
+    message2 = message2 .. pushint(string.len(parent_pubkey)) .. parent_pubkey
     local hash2 = crypto.hash.sha256(message2)
     sig.child.hash = base.encode16(hash2)
     sig.child.verified = crypto.bitcoin_message.verify(child_sig, hash2, child_pubkey, {encoding = 'binary'})

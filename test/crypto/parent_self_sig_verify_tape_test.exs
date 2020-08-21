@@ -51,7 +51,7 @@ defmodule Crypto.ParentChildSigVerifyTapeTest do
       assert res["parent"]["signature"] == "##dummy_sig1##"
       assert res["parent"]["pubkey"] == "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF"
       assert res["parent"]["verified"] == false
-      assert res["child"]["hash"] == "e677f9e0e80ae19c387e629ed816d62a7f4f85ebea94c02ef73193ffa53636da"
+      assert res["child"]["hash"] == "a3591af923ae39bb1082ec7003d058090ae864bc534080a95a06d6447ee378e0"
       assert res["child"]["signature"] == "##dummy_sig2##"
       assert res["child"]["pubkey"] == "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd"
       assert res["child"]["verified"] == false
@@ -93,7 +93,7 @@ defmodule Crypto.ParentChildSigVerifyTapeTest do
   describe "verifying a signature" do
     test "must verify a correct signature", ctx do
       sig1 = "IF4c9E2d7d0eqkR7apt8ZGXpthYhb4eF6ifLp5gXbIsRTw5GzNmK2H7kMjP1nYez0l15R5fLz48HBfqMJEocHGE="
-      sig2 = "IIpQsXL7qEUygBXW35QBoLXoRNYtJOudZzV2KxfsWDCbRBB/SkkuzS2mBcWmns9FLahzscdP6G3apusmlBUAOAg="
+      sig2 = "ILCHj8gjJ1+7WKTcRQCPg+u4M85T3pjmUjJ01MSKZF0vZNGSCFnrAOBpPavBG+atZuQLyjrazxXx+/Jx9gJAvSQ="
       res = %Operate.Cell{op: ctx.op, data_index: 0, params: ["1", sig1, "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF", sig2, "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd"]}
       |> Operate.Cell.exec!(ctx.vm)
       |> Map.get("signatures")
@@ -104,7 +104,7 @@ defmodule Crypto.ParentChildSigVerifyTapeTest do
 
     test "must verify with raw signatures", ctx do
       sig1 = Base.decode64! "IF4c9E2d7d0eqkR7apt8ZGXpthYhb4eF6ifLp5gXbIsRTw5GzNmK2H7kMjP1nYez0l15R5fLz48HBfqMJEocHGE="
-      sig2 = Base.decode64! "IIpQsXL7qEUygBXW35QBoLXoRNYtJOudZzV2KxfsWDCbRBB/SkkuzS2mBcWmns9FLahzscdP6G3apusmlBUAOAg="
+      sig2 = Base.decode64! "ILCHj8gjJ1+7WKTcRQCPg+u4M85T3pjmUjJ01MSKZF0vZNGSCFnrAOBpPavBG+atZuQLyjrazxXx+/Jx9gJAvSQ="
       res = %Operate.Cell{op: ctx.op, data_index: 0, params: ["1", sig1, "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF", sig2, "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd"]}
       |> Operate.Cell.exec!(ctx.vm)
       |> Map.get("signatures")
