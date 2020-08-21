@@ -47,11 +47,11 @@ defmodule Crypto.ParentChildSigVerifyTapeTest do
       |> Operate.Cell.exec!(ctx.vm)
       |> Map.get("signatures")
 
-      assert res["parent"]["hash"] == "49659874a1dd58cb2e244d5686f8f2723fbe636475ce1649bf93cc3d1cc56b9f"
+      assert res["parent"]["hash"] == "677ae98e74ebe6d68f93440bf2ebebdf35d7645a28c44220c88cab430b3b5734"
       assert res["parent"]["signature"] == "##dummy_sig1##"
       assert res["parent"]["pubkey"] == "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF"
       assert res["parent"]["verified"] == false
-      assert res["child"]["hash"] == "20c231fd924816f4485216ea26e51e876033256a91e3dccc371dda4d00a7d078"
+      assert res["child"]["hash"] == "e677f9e0e80ae19c387e629ed816d62a7f4f85ebea94c02ef73193ffa53636da"
       assert res["child"]["signature"] == "##dummy_sig2##"
       assert res["child"]["pubkey"] == "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd"
       assert res["child"]["verified"] == false
@@ -92,8 +92,8 @@ defmodule Crypto.ParentChildSigVerifyTapeTest do
 
   describe "verifying a signature" do
     test "must verify a correct signature", ctx do
-      sig1 = "H9o/19warnGfa1dfblvYLQFKCQa+KLnegyuCTAtR5wwuM/PKqCOvrWUgnVOd4QOq48AjAQ1ej+P6aPf6kHe8I78="
-      sig2 = "IPIeRTkp48ykrrXmW7OBry8/uA0o8mLQF4Kvu7urhV1CPz67urWhK1epgqEL8Z1uZV4OIxYuzs5JAli1YS0+Is4="
+      sig1 = "IF4c9E2d7d0eqkR7apt8ZGXpthYhb4eF6ifLp5gXbIsRTw5GzNmK2H7kMjP1nYez0l15R5fLz48HBfqMJEocHGE="
+      sig2 = "IIpQsXL7qEUygBXW35QBoLXoRNYtJOudZzV2KxfsWDCbRBB/SkkuzS2mBcWmns9FLahzscdP6G3apusmlBUAOAg="
       res = %Operate.Cell{op: ctx.op, data_index: 0, params: ["1", sig1, "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF", sig2, "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd"]}
       |> Operate.Cell.exec!(ctx.vm)
       |> Map.get("signatures")
@@ -103,8 +103,8 @@ defmodule Crypto.ParentChildSigVerifyTapeTest do
     end
 
     test "must verify with raw signatures", ctx do
-      sig1 = Base.decode64! "H9o/19warnGfa1dfblvYLQFKCQa+KLnegyuCTAtR5wwuM/PKqCOvrWUgnVOd4QOq48AjAQ1ej+P6aPf6kHe8I78="
-      sig2 = Base.decode64! "HwLB8rDyUwhVAOGailt2gqqA+fRhRy/G79quYHp/+ZZrd72mv1ynH9IdmN2gznQUyDp8deYZG/O3uGUaEZlmulU="
+      sig1 = Base.decode64! "IF4c9E2d7d0eqkR7apt8ZGXpthYhb4eF6ifLp5gXbIsRTw5GzNmK2H7kMjP1nYez0l15R5fLz48HBfqMJEocHGE="
+      sig2 = Base.decode64! "IIpQsXL7qEUygBXW35QBoLXoRNYtJOudZzV2KxfsWDCbRBB/SkkuzS2mBcWmns9FLahzscdP6G3apusmlBUAOAg="
       res = %Operate.Cell{op: ctx.op, data_index: 0, params: ["1", sig1, "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF", sig2, "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd"]}
       |> Operate.Cell.exec!(ctx.vm)
       |> Map.get("signatures")

@@ -3,12 +3,13 @@ Verifies both a parent and child signature, using the given public keys. Using
 two signatures allows Metanet-like tx graphs to be created, without need to
 sign inputs and with more flexible ownership properties.
 
-The message the parent signature is verified against is all of the data of the
-specified tape/output index. The data is data concatentated, then hashed using
-the SHA-256 algorithm.
+The message the parent signature is verified against is all of the script data
+from the specified output index. The data is hashed using the SHA-256 algorithm
+and then signed.
 
-The child signature is verified against the `tape_idx`, `parent_sig` and
-`parent_pubkey` parameters concatentated and hashed using the SHA-256 algorithm.
+The child signature is verified against the a subscripte made up from the
+`tape_idx`, `parent_sig` and `parent_pubkey` parameters. It is hashed using the
+SHA-256 algorithm and then signed
 
 The `tape_idx` parameter is the output index of the tape containg the data to
 verify the parent signature against. The value can either be utf8 encoded or an
@@ -53,7 +54,7 @@ formats:
     #   }
     # }
 
-@version 0.1.0
+@version 0.1.1
 @author Bitpost
 ]]--
 return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pubkey)
@@ -77,9 +78,6 @@ return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pub
     not isblank(child_sig) and not isblank(child_pubkey),
     'Invalid parameters. Must receive self signature and addr.')
 
-  local hash1 = nil
-  local hash2 = crypto.hash.sha256(tape_idx..parent_sig..parent_pubkey)
-
   -- Build the signature object
   local sig = {
     parent = {
@@ -93,6 +91,13 @@ return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pub
       verified = false
     }
   }
+
+  -- Convert tape index to integer
+  if string.match(tape_idx, '^[0-9]+$') then
+    tape_idx = math.floor(tonumber(tape_idx))
+  else
+    tape_idx = table.unpack(string.unpack('I1', tape_idx))
+  end
 
   -- If the signatures are base64 encoded then decode to binary string
   if string.len(parent_sig) == 88 and string.match(parent_sig, '^[a-zA-Z0-9+/=]+$') then
@@ -110,25 +115,39 @@ return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pub
     child_pubkey = base.decode16(child_pubkey)
   end
 
-  -- Convert tape index to integer
-  if string.match(tape_idx, '^[0-9]+$') then
-    tape_idx = math.floor(tonumber(tape_idx))
-  else
-    tape_idx = table.unpack(string.unpack('I1', tape_idx))
+  -- Local helper method for encoding an integer into a variable length binary
+  local function varint(int)
+    if      int < 253         then return string.pack('B', int)
+    elseif  int < 0x10000     then return string.pack('B<I2', 253, int)
+    elseif  int < 0x100000000 then return string.pack('B<I4', 254, int)
+    else                           return string.pack('B<I8', 255, int)
+    end
   end
 
   -- Get tape data, then iterate over tape data to build message for verification
   local tape = ctx.get_tape(tape_idx)
   if tape ~= nil then
-    local message = ''
+    local message1 = ''
     for idx = 1, #tape do
-      message = message .. tape[idx].b
+      local data = tape[idx]
+      if data.op == nil then
+        message1 = message1 .. varint(string.len(data.b)) .. data.b
+      else
+        message1 = message1 .. data.b
+      end
     end
-    local hash1 = crypto.hash.sha256(message)
+    local hash1 = crypto.hash.sha256(message1)
     sig.parent.hash = base.encode16(hash1)
     sig.parent.verified = crypto.bitcoin_message.verify(parent_sig, hash1, parent_pubkey, {encoding = 'binary'})
 
     -- Build child sig from parent signature params
+    local parts = {tape_idx, parent_sig, parent_pubkey}
+    local message2 = ''
+    for idx = 1, #parts do
+      local data = parts[idx]
+      message2 = message2 .. varint(string.len(data)) .. data
+    end
+    local hash2 = crypto.hash.sha256(message2)
     sig.child.hash = base.encode16(hash2)
     sig.child.verified = crypto.bitcoin_message.verify(child_sig, hash2, child_pubkey, {encoding = 'binary'})
   end
