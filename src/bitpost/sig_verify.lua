@@ -1,8 +1,8 @@
 --[[
 Verifies a timestamped signature with the given public key. The message the
 signature is verified against is all of the script data from the specified
-output index, hashed using the SHA-256 algorithm, and appended with a 64 bit
-timestamp.
+output index, hashed using the SHA-256 algorithm, and optionally appended with a
+unix timestamp.
 
     sign(sha256(output)++timestamp)
 
@@ -21,28 +21,28 @@ The `pubkey` parameter can be in any of the following formats:
   * Hex encoded string
   * A Bitcoin address string
 
-The `timestamp` is a linux timestamp given as either a utf-8 encoded string or a
-64-bit unsigned integer. The timestamp is optional.
+The `timestamp` is a linux timestamp and should be given as a utf8 encoded
+string. The timestamp is optional.
 
 ## Examples
 
     OP_FALSE OP_RETURN
       $REF
         "1"
-        "H0c7y0zWNIQ01IFlgOa3pvEuGIDe53Rc+4ogWyIha/OhWpkg83qNG7tr19XBLc1BSOwbauSRVWi12ncN1jye+iA="
+        "IPOJjDEQC2s44zbZCEPpjjFUA6w8DmMbpqpijSn0k44xQco4AU0RBp2aBZ3H/KgV3+u0l3e6YFeVNOidT0z0nbY="
         "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF"
         "1599495325"
     # {
     #   signatures: [{
     #     hash: "677ae98e74ebe6d68f93440bf2ebebdf35d7645a28c44220c88cab430b3b5734",
-    #     signature: "H0c7y0zWNIQ01IFlgOa3pvEuGIDe53Rc+4ogWyIha/OhWpkg83qNG7tr19XBLc1BSOwbauSRVWi12ncN1jye+iA=",
+    #     signature: "IPOJjDEQC2s44zbZCEPpjjFUA6w8DmMbpqpijSn0k44xQco4AU0RBp2aBZ3H/KgV3+u0l3e6YFeVNOidT0z0nbY=",
     #     pubkey: "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF",
     #     timestamp: 1599495325,
     #     verified: true,
     #   }]
     # }
 
-@version 0.2.0
+@version 0.2.1
 @author Bitpost
 ]]--
 return function(state, tape_idx, signature, pubkey, timestamp)
@@ -91,12 +91,6 @@ return function(state, tape_idx, signature, pubkey, timestamp)
     pubkey = base.decode16(pubkey)
   end
 
-  -- If the timestamp is utf8 encoded then decode to binary string
-  if string.len(timestamp) > 8 and string.match(timestamp, '^%d+$') then
-    timestamp = math.floor(tonumber(timestamp))
-    timestamp = string.pack('>I8', timestamp)
-  end
-
   -- Local helper method for encoding an integer into a variable length binary
   local function pushint(int)
     if      int < 76          then return string.pack('B', int)
@@ -125,8 +119,8 @@ return function(state, tape_idx, signature, pubkey, timestamp)
   end
 
   -- Add timestamp to sig table
-  if string.len(timestamp) == 8 then
-    timestamp = table.unpack(string.unpack('>I8', timestamp))
+  if string.len(timestamp) > 0 then
+    timestamp = math.floor(tonumber(timestamp))
   end
   sig.timestamp = timestamp
 

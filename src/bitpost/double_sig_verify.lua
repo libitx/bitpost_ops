@@ -5,15 +5,16 @@ need to sign inputs and with more flexible ownership properties.
 
 The message the parent signature is verified against is all of the script data
 from the specified output index, hashed using the SHA-256 algorithm, and
-appended with a 64 bit timestamp.
+optionally appended with a unix timestamp.
 
     sign(sha256(output)++timestamp)
 
 The child signature is verified against  a subscript made from the `tape_idx`,
-`parent_sig` and `parent_pubkey` parameters, hashed and then appented with the
-64 bit timestamp.
+`parent_sig` and `parent_pubkey` parameters, hashed and then appended with the
+timestamp.
 
-    sign(sha256(script(tape_idx, parent_sig, parent_pubkey))++timestamp)
+    subscript = script(tape_idx, parent_sig, parent_pubkey)
+    sign(sha256(subscript)++timestamp)
 
 The `tape_idx` parameter is the output index of the tape containg the data to
 verify the parent signature against. The value can either be utf8 encoded or an
@@ -32,31 +33,31 @@ formats:
   * Hex encoded string
   * A Bitcoin address string
 
-The `timestamp` is a linux timestamp given as either a utf-8 encoded string or a
-64-bit unsigned integer. The timestamp is optional.
+The `timestamp` is a linux timestamp and should be given as a utf8 encoded
+string. The timestamp is optional.
 
 ## Examples
 
     OP_FALSE OP_RETURN
       $REF
         "1"
-        "H0c7y0zWNIQ01IFlgOa3pvEuGIDe53Rc+4ogWyIha/OhWpkg83qNG7tr19XBLc1BSOwbauSRVWi12ncN1jye+iA="
+        "IPOJjDEQC2s44zbZCEPpjjFUA6w8DmMbpqpijSn0k44xQco4AU0RBp2aBZ3H/KgV3+u0l3e6YFeVNOidT0z0nbY="
         "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF"
-        "IKUI7KdayvS/BKgXlTnAj4Re4C8Ew/AJ9HdwectCSKQJKXQZchxpbC5wHbYKcbk0Ol7yUSYKOCf9ibCFjsPfatE="
+        "H2htShuq1R0P+XeEPofNFz05LsOk6Eldi7c/KFyPBtiXN7XFlqPMjKGQ9jtxe/iuPX5LIg41Pj/lO3ws35s46iE="
         "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd"
         "1599495325"
     # {
     #   signatures: {
     #     parent: {
-    #       hash: "4c2845d2977729bee395f12792d771d7f4b0786ca37ee9d5f5bcdf99581338d7",
-    #       signature: "H0c7y0zWNIQ01IFlgOa3pvEuGIDe53Rc+4ogWyIha/OhWpkg83qNG7tr19XBLc1BSOwbauSRVWi12ncN1jye+iA=",
+    #       hash: "c674d4eed5e506781a4bcc3d79e2e341cb4025e06e53d0592d26504cd09c8a35",
+    #       signature: "IPOJjDEQC2s44zbZCEPpjjFUA6w8DmMbpqpijSn0k44xQco4AU0RBp2aBZ3H/KgV3+u0l3e6YFeVNOidT0z0nbY=",
     #       pubkey: "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF",
     #       timestamp: 1599495325,
     #       verified: true,
     #     },
     #     child: {
     #       hash: "677ae98e74ebe6d68f93440bf2ebebdf35d7645a28c44220c88cab430b3b5734",
-    #       signature: "IKUI7KdayvS/BKgXlTnAj4Re4C8Ew/AJ9HdwectCSKQJKXQZchxpbC5wHbYKcbk0Ol7yUSYKOCf9ibCFjsPfatE=",
+    #       signature: "H2htShuq1R0P+XeEPofNFz05LsOk6Eldi7c/KFyPBtiXN7XFlqPMjKGQ9jtxe/iuPX5LIg41Pj/lO3ws35s46iE=",
     #       pubkey: "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd",
     #       timestamp: 1599495325,
     #       verified: true,
@@ -64,7 +65,7 @@ The `timestamp` is a linux timestamp given as either a utf-8 encoded string or a
     #   }
     # }
 
-@version 0.2.0
+@version 0.2.1
 @author Bitpost
 ]]--
 return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pubkey, timestamp)
@@ -126,12 +127,6 @@ return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pub
     child_pubkey = base.decode16(child_pubkey)
   end
 
-  -- If the timestamp is utf8 encoded then decode to binary string
-  if string.len(timestamp) > 8 and string.match(timestamp, '^%d+$') then
-    timestamp = math.floor(tonumber(timestamp))
-    timestamp = string.pack('>I8', timestamp)
-  end
-
   -- Local helper method for encoding an integer into a variable length binary
   local function pushint(int)
     if      int < 76          then return string.pack('B', int)
@@ -178,8 +173,8 @@ return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pub
   end
 
   -- Add timestamp to sig table
-  if string.len(timestamp) == 8 then
-    timestamp = table.unpack(string.unpack('>I8', timestamp))
+  if string.len(timestamp) > 0 then
+    timestamp = math.floor(tonumber(timestamp))
   end
   sig.parent.timestamp = timestamp
   sig.child.timestamp = timestamp
