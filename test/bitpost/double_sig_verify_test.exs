@@ -1,4 +1,4 @@
-defmodule Crypto.ParentChildSigVerifyTapeTest do
+defmodule Bitpost.DoubleSigVerifyTest do
   use ExUnit.Case
   alias Operate.VM
 
@@ -36,7 +36,7 @@ defmodule Crypto.ParentChildSigVerifyTapeTest do
 
     %{
       vm: vm,
-      op: File.read!("src/crypto/parent_child_sig_verify_tape.lua")
+      op: File.read!("src/bitpost/double_sig_verify.lua")
     }
   end
 
@@ -57,7 +57,7 @@ defmodule Crypto.ParentChildSigVerifyTapeTest do
       assert res["child"]["verified"] == false
     end
 
-    test "works consistently if index is an integer", ctx do
+    test "works consistently if index and timestamp is an integer", ctx do
       res = %Operate.Cell{op: ctx.op, data_index: 0, params: [<<1>>, "##dummy_sig1##", "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF", "##dummy_sig2##", "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd"]}
       |> Operate.Cell.exec!(ctx.vm)
       |> Map.get("signatures")

@@ -54,7 +54,7 @@ formats:
     #   }
     # }
 
-@version 0.1.2
+@version 0.1.3
 @author Bitpost
 ]]--
 return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pubkey)
@@ -67,16 +67,16 @@ return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pub
 
   assert(
     type(state) == 'table',
-    'Invalid state. Must receive a table.')
+    'Invalid state. Must be a table.')
   assert(
     not isblank(tape_idx),
-    'Invalid tape index. Must receive tape index.')
+    'Invalid parameters. Tape index must be present.')
   assert(
     not isblank(parent_sig) and not isblank(parent_pubkey),
-    'Invalid parameters. Must receive parent signature and addr.')
+    'Invalid parameters. Parent signature and pubkey must be present.')
   assert(
     not isblank(child_sig) and not isblank(child_pubkey),
-    'Invalid parameters. Must receive self signature and addr.')
+    'Invalid parameters. Child signature and pubkey must be present.')
 
   -- Build the signature object
   local sig = {
