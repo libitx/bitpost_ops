@@ -42,7 +42,7 @@ string. The timestamp is optional.
     #   }]
     # }
 
-@version 0.2.1
+@version 0.2.2
 @author Bitpost
 ]]--
 return function(state, tape_idx, signature, pubkey, timestamp)
@@ -94,7 +94,7 @@ return function(state, tape_idx, signature, pubkey, timestamp)
   -- Local helper method for encoding an integer into a variable length binary
   local function pushint(int)
     if      int < 76          then return string.pack('B', int)
-    elseif  int < 0x100       then return string.pack('B', 76, int)
+    elseif  int < 0x100       then return string.pack('BI1', 76, int)
     elseif  int < 0x10000     then return string.pack('B<I2', 77, int)
     elseif  int < 0x100000000 then return string.pack('B<I4', 78, int)
     else                           error('Push data too large')
