@@ -1,21 +1,25 @@
 --[[
-Verifies both a parent and child signature, using the given public keys. Using
-two signatures allows Metanet-like tx graphs to be created, without need to
-sign inputs and with more flexible ownership properties.
+Verifies both a parent and child timestamped signatures with the given public
+keys. Using two signatures allows Metanet-like tx graphs to be created, without
+need to sign inputs and with more flexible ownership properties.
 
 The message the parent signature is verified against is all of the script data
-from the specified output index. The data is hashed using the SHA-256 algorithm
-and then signed.
+from the specified output index, hashed using the SHA-256 algorithm, and
+appended with a 64 bit timestamp.
 
-The child signature is verified against the a subscripte made up from the
-`tape_idx`, `parent_sig` and `parent_pubkey` parameters. It is hashed using the
-SHA-256 algorithm and then signed
+    sign(sha256(output)++timestamp)
+
+The child signature is verified against  a subscript made from the `tape_idx`,
+`parent_sig` and `parent_pubkey` parameters, hashed and then appented with the
+64 bit timestamp.
+
+    sign(sha256(script(tape_idx, parent_sig, parent_pubkey))++timestamp)
 
 The `tape_idx` parameter is the output index of the tape containg the data to
 verify the parent signature against. The value can either be utf8 encoded or an
 unsigned integer.
 
-he `parent_sig` and `child_sig` paramaters can be in either of the following
+The `parent_sig` and `child_sig` paramaters can be in either of the following
 formats:
 
   * Raw 65 byte binary signature
@@ -28,37 +32,44 @@ formats:
   * Hex encoded string
   * A Bitcoin address string
 
+The `timestamp` is a linux timestamp given as either a utf-8 encoded string or a
+64-bit unsigned integer. The timestamp is optional.
+
 ## Examples
 
     OP_FALSE OP_RETURN
       $REF
         "1"
-        "H9o/19warnGfa1dfblvYLQFKCQa+KLnegyuCTAtR5wwuM/PKqCOvrWUgnVOd4QOq48AjAQ1ej+P6aPf6kHe8I78="
+        "H0c7y0zWNIQ01IFlgOa3pvEuGIDe53Rc+4ogWyIha/OhWpkg83qNG7tr19XBLc1BSOwbauSRVWi12ncN1jye+iA="
         "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF"
-        "IPIeRTkp48ykrrXmW7OBry8/uA0o8mLQF4Kvu7urhV1CPz67urWhK1epgqEL8Z1uZV4OIxYuzs5JAli1YS0+Is4="
+        "IKUI7KdayvS/BKgXlTnAj4Re4C8Ew/AJ9HdwectCSKQJKXQZchxpbC5wHbYKcbk0Ol7yUSYKOCf9ibCFjsPfatE="
         "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd"
+        "1599495325"
     # {
     #   signatures: {
     #     parent: {
-    #       hash: "49659874a1dd58cb2e244d5686f8f2723fbe636475ce1649bf93cc3d1cc56b9f",
-    #       signature: "H9o/19warnGfa1dfblvYLQFKCQa+KLnegyuCTAtR5wwuM/PKqCOvrWUgnVOd4QOq48AjAQ1ej+P6aPf6kHe8I78=",
+    #       hash: "4c2845d2977729bee395f12792d771d7f4b0786ca37ee9d5f5bcdf99581338d7",
+    #       signature: "H0c7y0zWNIQ01IFlgOa3pvEuGIDe53Rc+4ogWyIha/OhWpkg83qNG7tr19XBLc1BSOwbauSRVWi12ncN1jye+iA=",
     #       pubkey: "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF",
+    #       timestamp: 1599495325,
     #       verified: true,
     #     },
     #     child: {
-    #       hash: "20c231fd924816f4485216ea26e51e876033256a91e3dccc371dda4d00a7d078",
-    #       signature: "IPIeRTkp48ykrrXmW7OBry8/uA0o8mLQF4Kvu7urhV1CPz67urWhK1epgqEL8Z1uZV4OIxYuzs5JAli1YS0+Is4=",
+    #       hash: "677ae98e74ebe6d68f93440bf2ebebdf35d7645a28c44220c88cab430b3b5734",
+    #       signature: "IKUI7KdayvS/BKgXlTnAj4Re4C8Ew/AJ9HdwectCSKQJKXQZchxpbC5wHbYKcbk0Ol7yUSYKOCf9ibCFjsPfatE=",
     #       pubkey: "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd",
+    #       timestamp: 1599495325,
     #       verified: true,
     #     },
     #   }
     # }
 
-@version 0.1.3
+@version 0.2.0
 @author Bitpost
 ]]--
-return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pubkey)
+return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pubkey, timestamp)
   state = state or {}
+  timestamp = timestamp or ''
 
   -- Local helper method to determine if a string is blank
   local function isblank(str)
@@ -115,6 +126,12 @@ return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pub
     child_pubkey = base.decode16(child_pubkey)
   end
 
+  -- If the timestamp is utf8 encoded then decode to binary string
+  if string.len(timestamp) > 8 and string.match(timestamp, '^%d+$') then
+    timestamp = math.floor(tonumber(timestamp))
+    timestamp = string.pack('>I8', timestamp)
+  end
+
   -- Local helper method for encoding an integer into a variable length binary
   local function pushint(int)
     if      int < 76          then return string.pack('B', int)
@@ -139,7 +156,12 @@ return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pub
     end
     local hash1 = crypto.hash.sha256(message1)
     sig.parent.hash = base.encode16(hash1)
-    sig.parent.verified = crypto.bitcoin_message.verify(parent_sig, hash1, parent_pubkey, {encoding = 'binary'})
+    sig.parent.verified = crypto.bitcoin_message.verify(
+      parent_sig,
+      hash1..timestamp,
+      parent_pubkey,
+      {encoding = 'binary'}
+    )
 
     -- Build child sig from parent signature params
     local message2 = pushint(tape_idx) .. string.pack('B', tape_idx)
@@ -147,8 +169,20 @@ return function(state, tape_idx, parent_sig, parent_pubkey, child_sig, child_pub
     message2 = message2 .. pushint(string.len(parent_pubkey)) .. parent_pubkey
     local hash2 = crypto.hash.sha256(message2)
     sig.child.hash = base.encode16(hash2)
-    sig.child.verified = crypto.bitcoin_message.verify(child_sig, hash2, child_pubkey, {encoding = 'binary'})
+    sig.child.verified = crypto.bitcoin_message.verify(
+      child_sig,
+      hash2..timestamp,
+      child_pubkey,
+      {encoding = 'binary'}
+    )
   end
+
+  -- Add timestamp to sig table
+  if string.len(timestamp) == 8 then
+    timestamp = table.unpack(string.unpack('>I8', timestamp))
+  end
+  sig.parent.timestamp = timestamp
+  sig.child.timestamp = timestamp
 
   -- Add signature to state
   state.signatures = state.signatures or {}

@@ -43,27 +43,38 @@ defmodule Bitpost.DoubleSigVerifyTest do
 
   describe "simple example without signed content" do
     test "must set the correct attributes", ctx do
-      res = %Operate.Cell{op: ctx.op, data_index: 0, params: ["1", "##dummy_sig1##", "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF", "##dummy_sig2##", "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd"]}
+      res = %Operate.Cell{op: ctx.op, data_index: 0, params: ["1", "##dummy_sig1##", "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF", "##dummy_sig2##", "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd", "1599495325"]}
       |> Operate.Cell.exec!(ctx.vm)
       |> Map.get("signatures")
 
       assert res["parent"]["hash"] == "677ae98e74ebe6d68f93440bf2ebebdf35d7645a28c44220c88cab430b3b5734"
       assert res["parent"]["signature"] == "##dummy_sig1##"
       assert res["parent"]["pubkey"] == "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF"
+      assert res["parent"]["timestamp"] == 1599495325
       assert res["parent"]["verified"] == false
       assert res["child"]["hash"] == "a3591af923ae39bb1082ec7003d058090ae864bc534080a95a06d6447ee378e0"
       assert res["child"]["signature"] == "##dummy_sig2##"
       assert res["child"]["pubkey"] == "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd"
+      assert res["child"]["timestamp"] == 1599495325
       assert res["child"]["verified"] == false
     end
 
     test "works consistently if index and timestamp is an integer", ctx do
-      res = %Operate.Cell{op: ctx.op, data_index: 0, params: [<<1>>, "##dummy_sig1##", "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF", "##dummy_sig2##", "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd"]}
+      res = %Operate.Cell{op: ctx.op, data_index: 0, params: [<<1>>, "##dummy_sig1##", "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF", "##dummy_sig2##", "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd", <<0, 0, 0, 0, 95, 86, 92, 157>>]}
       |> Operate.Cell.exec!(ctx.vm)
       |> Map.get("signatures")
 
       assert res["parent"]["hash"] == "677ae98e74ebe6d68f93440bf2ebebdf35d7645a28c44220c88cab430b3b5734"
+      assert res["parent"]["timestamp"] == 1599495325
       assert res["child"]["hash"] == "a3591af923ae39bb1082ec7003d058090ae864bc534080a95a06d6447ee378e0"
+      assert res["child"]["timestamp"] == 1599495325
+    end
+
+    test "must raise when tape index is missing", ctx do
+      assert_raise RuntimeError, ~r/^Lua Error/, fn ->
+        %Operate.Cell{op: ctx.op, params: [nil, "##dummy_sig1##", "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF", "##dummy_sig2##", "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd"]}
+        |> Operate.Cell.exec!(ctx.vm)
+      end
     end
 
     test "must raise when either pubkey is missing", ctx do
@@ -86,13 +97,6 @@ defmodule Bitpost.DoubleSigVerifyTest do
 
       assert_raise RuntimeError, ~r/^Lua Error/, fn ->
         %Operate.Cell{op: ctx.op, params: ["1", "##dummy_sig1##", "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF", nil, "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd"]}
-        |> Operate.Cell.exec!(ctx.vm)
-      end
-    end
-
-    test "must raise when tape index is missing", ctx do
-      assert_raise RuntimeError, ~r/^Lua Error/, fn ->
-        %Operate.Cell{op: ctx.op, params: [nil, "##dummy_sig1##", "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF", "##dummy_sig2##", "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd"]}
         |> Operate.Cell.exec!(ctx.vm)
       end
     end
@@ -120,6 +124,28 @@ defmodule Bitpost.DoubleSigVerifyTest do
 
       assert res["parent"]["verified"] == true
       assert res["child"]["verified"] == true
+    end
+
+    test "must verify a correct timestamped signature", ctx do
+      sig1 = "H0c7y0zWNIQ01IFlgOa3pvEuGIDe53Rc+4ogWyIha/OhWpkg83qNG7tr19XBLc1BSOwbauSRVWi12ncN1jye+iA="
+      sig2 = "IKUI7KdayvS/BKgXlTnAj4Re4C8Ew/AJ9HdwectCSKQJKXQZchxpbC5wHbYKcbk0Ol7yUSYKOCf9ibCFjsPfatE="
+      res = %Operate.Cell{op: ctx.op, data_index: 0, params: ["1", sig1, "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF", sig2, "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd", "1599495325"]}
+      |> Operate.Cell.exec!(ctx.vm)
+      |> Map.get("signatures")
+
+      assert res["parent"]["verified"] == true
+      assert res["child"]["verified"] == true
+    end
+
+    test "wont verify an incorrect timestamped signature", ctx do
+      sig1 = "H0c7y0zWNIQ01IFlgOa3pvEuGIDe53Rc+4ogWyIha/OhWpkg83qNG7tr19XBLc1BSOwbauSRVWi12ncN1jye+iA="
+      sig2 = "IKUI7KdayvS/BKgXlTnAj4Re4C8Ew/AJ9HdwectCSKQJKXQZchxpbC5wHbYKcbk0Ol7yUSYKOCf9ibCFjsPfatE="
+      res = %Operate.Cell{op: ctx.op, data_index: 0, params: ["1", sig1, "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF", sig2, "1KNiYtyWqjmR8DoC8e7xeMi2F1CwHcrdsd", "1599490000"]}
+      |> Operate.Cell.exec!(ctx.vm)
+      |> Map.get("signatures")
+
+      assert res["parent"]["verified"] == false
+      assert res["child"]["verified"] == false
     end
   end
 

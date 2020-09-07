@@ -1,7 +1,10 @@
 --[[
-Verifies the given signature using the public key. The message signature is
-verified against is all of the script data from the specified output index. The
-data is hashed using the SHA-256 algorithm and then signed.
+Verifies a timestamped signature with the given public key. The message the
+signature is verified against is all of the script data from the specified
+output index, hashed using the SHA-256 algorithm, and appended with a 64 bit
+timestamp.
+
+    sign(sha256(output)++timestamp)
 
 The `tape_idx` parameter is the output index of the tape containg the data to
 verify the parent signature against. The value can either be utf8 encoded or an
@@ -18,27 +21,33 @@ The `pubkey` parameter can be in any of the following formats:
   * Hex encoded string
   * A Bitcoin address string
 
+The `timestamp` is a linux timestamp given as either a utf-8 encoded string or a
+64-bit unsigned integer. The timestamp is optional.
+
 ## Examples
 
     OP_FALSE OP_RETURN
       $REF
         "1"
-        "H9o/19warnGfa1dfblvYLQFKCQa+KLnegyuCTAtR5wwuM/PKqCOvrWUgnVOd4QOq48AjAQ1ej+P6aPf6kHe8I78="
+        "H0c7y0zWNIQ01IFlgOa3pvEuGIDe53Rc+4ogWyIha/OhWpkg83qNG7tr19XBLc1BSOwbauSRVWi12ncN1jye+iA="
         "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF"
+        "1599495325"
     # {
     #   signatures: [{
-    #     hash: "49659874a1dd58cb2e244d5686f8f2723fbe636475ce1649bf93cc3d1cc56b9f",
-    #     signature: "H9o/19warnGfa1dfblvYLQFKCQa+KLnegyuCTAtR5wwuM/PKqCOvrWUgnVOd4QOq48AjAQ1ej+P6aPf6kHe8I78=",
+    #     hash: "677ae98e74ebe6d68f93440bf2ebebdf35d7645a28c44220c88cab430b3b5734",
+    #     signature: "H0c7y0zWNIQ01IFlgOa3pvEuGIDe53Rc+4ogWyIha/OhWpkg83qNG7tr19XBLc1BSOwbauSRVWi12ncN1jye+iA=",
     #     pubkey: "1iCqLKPjv5HZ43MPkAC42vKPANLkGzbKF",
+    #     timestamp: 1599495325,
     #     verified: true,
     #   }]
     # }
 
-@version 0.1.0
+@version 0.2.0
 @author Bitpost
 ]]--
-return function(state, tape_idx, signature, pubkey)
+return function(state, tape_idx, signature, pubkey, timestamp)
   state = state or {}
+  timestamp = timestamp or ''
 
   -- Local helper method to determine if a string is blank
   local function isblank(str)
@@ -82,6 +91,12 @@ return function(state, tape_idx, signature, pubkey)
     pubkey = base.decode16(pubkey)
   end
 
+  -- If the timestamp is utf8 encoded then decode to binary string
+  if string.len(timestamp) > 8 and string.match(timestamp, '^%d+$') then
+    timestamp = math.floor(tonumber(timestamp))
+    timestamp = string.pack('>I8', timestamp)
+  end
+
   -- Local helper method for encoding an integer into a variable length binary
   local function pushint(int)
     if      int < 76          then return string.pack('B', int)
@@ -106,8 +121,14 @@ return function(state, tape_idx, signature, pubkey)
     end
     local hash = crypto.hash.sha256(message)
     sig.hash = base.encode16(hash)
-    sig.verified = crypto.bitcoin_message.verify(signature, hash, pubkey, {encoding = 'binary'})
+    sig.verified = crypto.bitcoin_message.verify(signature, hash..timestamp, pubkey, {encoding = 'binary'})
   end
+
+  -- Add timestamp to sig table
+  if string.len(timestamp) == 8 then
+    timestamp = table.unpack(string.unpack('>I8', timestamp))
+  end
+  sig.timestamp = timestamp
 
   -- Add signature to state
   state.signatures = state.signatures or {}
