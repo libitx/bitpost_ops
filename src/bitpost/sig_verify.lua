@@ -42,7 +42,7 @@ string. The timestamp is optional.
     #   }]
     # }
 
-@version 0.2.2
+@version 0.2.3
 @author Bitpost
 ]]--
 return function(state, tape_idx, signature, pubkey, timestamp)
@@ -78,7 +78,7 @@ return function(state, tape_idx, signature, pubkey, timestamp)
   if string.match(tape_idx, '^[0-9]+$') then
     tape_idx = math.floor(tonumber(tape_idx))
   else
-    tape_idx = table.unpack(string.unpack('I1', tape_idx))
+    tape_idx = math.floor(string.unpack('I1', tape_idx))
   end
 
   -- If the signature is base64 encoded then decode to binary string
